@@ -1,0 +1,12 @@
+#map {
+  height: 500px;
+  width: 100%;
+}
+
+.emergency-marker {
+  font-size: 30px;
+  text-align: center;
+  line-height: 35px;
+  background: transparent;
+  border: none;
+}
