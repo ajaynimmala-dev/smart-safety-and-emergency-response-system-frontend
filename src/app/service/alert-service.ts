@@ -9,7 +9,7 @@ import { AlertResponse } from '../interface/alert-response';
 })
 export class AlertService {
 
-  private apiUrl = 'http://localhost:8082/api/alerts';
+  private apiUrl = 'https://smart-safety-and-emergency-response.onrender.com/api/alerts';
 
 
   constructor(private http: HttpClient) {
@@ -55,7 +55,7 @@ export class AlertService {
   ) {
 
     return this.http.put<AlertResponse>(
-      `http://localhost:8082/api/alerts/${alertId}/location`,
+      `https://smart-safety-and-emergency-response.onrender.com/api/alerts/${alertId}/location`,
       null,
       {
         params: {

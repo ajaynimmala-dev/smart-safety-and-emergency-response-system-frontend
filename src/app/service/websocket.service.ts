@@ -46,7 +46,7 @@ export class WebSocketService {
 
       webSocketFactory: () =>
         new SockJS(
-          'http://localhost:8082/ws'
+          'https://smart-safety-and-emergency-response.onrender.com//ws'
         ),
 
       reconnectDelay: 5000,
@@ -64,10 +64,10 @@ export class WebSocketService {
     this.client.onConnect = () => {
 
       console.log(
-        '✅ WebSocket CONNECTED'
+        'WebSocket CONNECTED'
       );
 
-      
+
       this.client.subscribe(
         '/topic/alerts',
         (message: IMessage) => {
@@ -78,7 +78,7 @@ export class WebSocketService {
             );
 
           console.log(
-            '🚨 ALERT RECEIVED:',
+            ' ALERT RECEIVED:',
             alert
           );
 

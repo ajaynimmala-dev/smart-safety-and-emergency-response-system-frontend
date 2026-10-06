@@ -11,7 +11,7 @@ import { LoginResponse } from '../interface/login-response';
 })
 export class AuthService {
 
-  private apiUrl = 'http://localhost:8082/api/auth';
+  private apiUrl = 'https://smart-safety-and-emergency-response.onrender.com/api/auth';
 
   constructor(private http: HttpClient) {
   }
