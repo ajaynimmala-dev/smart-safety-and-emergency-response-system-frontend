@@ -46,7 +46,7 @@ export class WebSocketService {
 
       webSocketFactory: () =>
         new SockJS(
-          'https://smart-safety-and-emergency-response.onrender.com//ws'
+          'https://smart-safety-and-emergency-response.onrender.com/ws'
         ),
 
       reconnectDelay: 5000,

@@ -9,8 +9,8 @@ import { AlertResponse } from '../interface/alert-response';
 })
 export class AlertService {
 
-  private apiUrl = 'https://smart-safety-and-emergency-response.onrender.com/api/alerts';
-
+  private apiUrl =
+    'https://smart-safety-and-emergency-response.onrender.com/api/alerts';
 
   constructor(private http: HttpClient) {
   }
@@ -39,6 +39,7 @@ export class AlertService {
   }
 
   resolveAlert(alertId: number): Observable<string> {
+
     return this.http.put(
       `${this.apiUrl}/${alertId}/resolve`,
       {},
@@ -46,16 +47,17 @@ export class AlertService {
         responseType: 'text'
       }
     );
+
   }
 
   updateAlertLocation(
     alertId: number,
     latitude: number,
     longitude: number
-  ) {
+  ): Observable<AlertResponse> {
 
     return this.http.put<AlertResponse>(
-      `https://smart-safety-and-emergency-response.onrender.com/api/alerts/${alertId}/location`,
+      `${this.apiUrl}/${alertId}/location`,
       null,
       {
         params: {
