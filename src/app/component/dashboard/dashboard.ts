@@ -42,8 +42,7 @@ export class DashboardComponent
 
   private currentLongitude!: number;
 
-  private routeLine?: L.Polyline;
-
+  private routeLines: Map<number, L.Polyline> = new Map();
 
   constructor(
     private websocketService: WebSocketService,
@@ -222,44 +221,50 @@ export class DashboardComponent
 
 
   loadActiveAlerts(): void {
+    this.alertService.getActiveAlerts().subscribe({
+      next: (alerts: AlertResponse[]) => {
 
-    this.alertService
-      .getActiveAlerts()
-      .subscribe({
+        console.log('ACTIVE ALERTS:', alerts);
 
-        next: (alerts: AlertResponse[]) => {
+        this.activeAlerts = alerts;
 
-          console.log(
-            'ACTIVE ALERTS:',
-            alerts
-          );
+        const currentUserId =
+          Number(localStorage.getItem('USER_ID'));
 
-          this.activeAlerts =
-            alerts;
+         const currentUserIsAlertUser = alerts.some(
+          (alert: AlertResponse) =>
+            alert.userId === currentUserId
+        );
 
-          alerts.forEach(
-            (alert: AlertResponse) => {
+        console.log(
+          'Current user ID:',
+          currentUserId
+        );
 
-              this.addMarker(alert);
+        console.log(
+          'Current user is alert user:',
+          currentUserIsAlertUser
+        );
 
-              this.drawRouteToAlert(alert);
+        alerts.forEach((alert: AlertResponse) => {
 
-            }
-          );
+          this.addMarker(alert);
 
-        },
+          if (currentUserIsAlertUser) {
+            return;
+          }
 
-        error: (error: any) => {
+          this.drawRouteToAlert(alert);
+        });
+      },
 
-          console.log(
-            'Failed to load active alerts:',
-            error
-          );
-
-        }
-
-      });
-
+      error: (error) => {
+        console.log(
+          'Failed to load active alerts:',
+          error
+        );
+      }
+    });
   }
 
 
@@ -450,61 +455,42 @@ export class DashboardComponent
 
     this.alertPollingInterval = setInterval(() => {
 
-      this.alertService
-        .getActiveAlerts()
-        .subscribe({
+      this.alertService.getActiveAlerts().subscribe({
+        next: (alerts: AlertResponse[]) => {
 
-          next: (alerts: AlertResponse[]) => {
+          console.log('LATEST ALERTS:', alerts);
 
-            console.log(
-              'LATEST ALERTS:',
-              alerts
-            );
+          this.activeAlerts = alerts;
 
-            // No active alerts
-            if (alerts.length === 0) {
+          const currentUserId =
+            Number(localStorage.getItem('USER_ID'));
 
-              console.log(
-                'No active alerts - stopping polling'
-              );
+          const currentUserIsAlertUser = alerts.some(
+            (alert: AlertResponse) =>
+              alert.userId === currentUserId
+          );
 
-              clearInterval(
-                this.alertPollingInterval
-              );
+          alerts.forEach((alert: AlertResponse) => {
 
-              this.alertPollingInterval =
-                undefined;
+            this.updateAlertMarker(alert);
 
+            if (currentUserIsAlertUser) {
               return;
             }
 
-            this.activeAlerts = alerts;
+            this.drawRouteToAlert(alert);
+          });
+        },
 
-            alerts.forEach(
-              (alert: AlertResponse) => {
-
-                this.updateAlertMarker(alert);
-
-                this.drawRouteToAlert(alert);
-
-              }
-            );
-
-          },
-
-          error: (error) => {
-
-            console.log(
-              'Polling error:',
-              error
-            );
-
-          }
-
-        });
+        error: (error) => {
+          console.log(
+            'Alert polling error:',
+            error
+          );
+        }
+      });
 
     }, 5000);
-
   }
 
 
@@ -525,20 +511,32 @@ export class DashboardComponent
     const emergencyIcon =
       L.divIcon({
 
-        className:
-          'emergency-marker',
+        className: 'emergency-marker',
 
-        html:
-          '🚨',
+        html: `
+      <div style="
+        width: 40px;
+        height: 40px;
+        background: red;
+        color: white;
+        border: 3px solid white;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: bold;
+        font-size: 14px;
+        box-shadow: 0 0 8px rgba(0,0,0,0.6);
+      ">
+        At${alert.alertId}
+      </div>
+    `,
 
-        iconSize:
-          [35, 35],
+        iconSize: [50, 50],
 
-        iconAnchor:
-          [17, 17],
+        iconAnchor: [23, 23],
 
-        popupAnchor:
-          [0, -17]
+        popupAnchor: [0, -23]
 
       });
 
@@ -650,21 +648,6 @@ export class DashboardComponent
       marker
     );
 
-
-    marker.openPopup();
-
-
-    this.map.setView(
-
-      [
-        alert.latitude,
-        alert.longitude
-      ],
-
-      15
-
-    );
-
   }
 
 
@@ -699,28 +682,30 @@ export class DashboardComponent
   }
 
 
-  drawRouteToAlert(
-    alert: AlertResponse
-  ): void {
+  drawRouteToAlert(alert: AlertResponse): void {
+
+    const currentUserId =
+      Number(localStorage.getItem('USER_ID'));
+
+    if (this.activeAlerts.some(
+      (activeAlert: AlertResponse) =>
+        activeAlert.userId === currentUserId
+    )) {
+      console.log(
+        'Current user is an alert user. Route not created.'
+      );
+      return;
+    }
 
     if (
-
-      this.currentLatitude ===
-      undefined ||
-
-      this.currentLongitude ===
-      undefined
-
+      this.currentLatitude === undefined ||
+      this.currentLongitude === undefined
     ) {
-
       console.log(
         'Current location not available'
       );
-
       return;
-
     }
-
 
     const startLongitude =
       this.currentLongitude;
@@ -734,138 +719,74 @@ export class DashboardComponent
     const endLatitude =
       alert.latitude;
 
-
     const url =
-
       `https://router.project-osrm.org/route/v1/driving/` +
-
       `${startLongitude},${startLatitude};` +
-
       `${endLongitude},${endLatitude}` +
-
       `?overview=full&geometries=geojson`;
-
 
     console.log(
       'Route URL:',
       url
     );
 
+    this.http.get<any>(url).subscribe({
+      next: (response) => {
 
-    this.http
-      .get<any>(url)
-      .subscribe({
-
-        next: (response) => {
-
+        if (
+          !response.routes ||
+          response.routes.length === 0
+        ) {
           console.log(
-            'Route response:',
-            response
+            'No route found for alert:',
+            alert.alertId
           );
-
-
-          if (
-
-            !response.routes ||
-
-            response.routes.length === 0
-
-          ) {
-
-            console.log(
-              'No route found'
-            );
-
-            return;
-
-          }
-
-
-          const coordinates =
-            response
-              .routes[0]
-              .geometry
-              .coordinates;
-
-
-          const latLngs =
-            coordinates.map(
-
-              (coordinate: number[]) => {
-
-                return [
-
-                  coordinate[1],
-
-                  coordinate[0]
-
-                ] as L.LatLngExpression;
-
-              }
-
-            );
-
-
-          if (this.routeLine) {
-
-            this.map.removeLayer(
-              this.routeLine
-            );
-
-          }
-
-
-          this.routeLine =
-            L.polyline(
-
-              latLngs,
-
-              {
-                weight: 5
-              }
-
-            ).addTo(
-              this.map
-            );
-
-
-          const distance =
-            response.routes[0]
-              .distance;
-
-
-          const duration =
-            response.routes[0]
-              .duration;
-
-
-          console.log(
-            'Distance:',
-            distance / 1000,
-            'KM'
-          );
-
-
-          console.log(
-            'Duration:',
-            duration / 60,
-            'Minutes'
-          );
-
-        },
-
-
-        error: (error) => {
-
-          console.log(
-            'Route error:',
-            error
-          );
-
+          return;
         }
 
-      });
+        const coordinates =
+          response.routes[0].geometry.coordinates;
 
+        const latLngs =
+          coordinates.map(
+            (coordinate: number[]) =>
+              [
+                coordinate[1],
+                coordinate[0]
+              ] as L.LatLngExpression
+          );
+
+        const existingRoute =
+          this.routeLines.get(alert.alertId);
+
+        if (existingRoute) {
+          this.map.removeLayer(existingRoute);
+        }
+
+        const route =
+          L.polyline(
+            latLngs,
+            { weight: 5 }
+          ).addTo(this.map);
+
+        this.routeLines.set(
+          alert.alertId,
+          route
+        );
+
+        console.log(
+          `Alert ${alert.alertId} route created`
+        );
+      },
+
+      error: (error) => {
+        console.log(
+          'Route error for alert:',
+          alert.alertId,
+          error
+        );
+      }
+    });
   }
 
 
@@ -877,7 +798,6 @@ export class DashboardComponent
       'Resolving alert:',
       alertId
     );
-
 
     this.alertService
       .resolveAlert(
@@ -891,9 +811,10 @@ export class DashboardComponent
             'Alert resolved:',
             response
           );
-
-
-          if (this.locationInterval) {
+          if (
+            this.activeAlertId === alertId &&
+            this.locationInterval
+          ) {
 
             clearInterval(
               this.locationInterval
@@ -902,18 +823,14 @@ export class DashboardComponent
             this.locationInterval =
               undefined;
 
+            this.activeAlertId =
+              undefined;
           }
-
-
-          this.activeAlertId =
-            undefined;
-
 
           const marker =
             this.markers.get(
               alertId
             );
-
 
           if (marker) {
 
@@ -923,33 +840,38 @@ export class DashboardComponent
 
           }
 
-
           this.markers.delete(
             alertId
           );
-
-
           this.activeAlerts =
             this.activeAlerts.filter(
               alert =>
-                alert.alertId !==
-                alertId
+                alert.alertId !== alertId
             );
 
+          const route =
+            this.routeLines.get(
+              alertId
+            );
 
-          if (this.routeLine) {
+          if (route) {
 
             this.map.removeLayer(
-              this.routeLine
+              route
             );
 
-            this.routeLine =
-              undefined;
+            this.routeLines.delete(
+              alertId
+            );
 
           }
 
-        },
+          console.log(
+            'Alert, marker and route removed:',
+            alertId
+          );
 
+        },
 
         error: (error) => {
 
